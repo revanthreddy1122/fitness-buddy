@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}BMI Calculator{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+
+      <div class="d-flex align-items-center gap-3 mb-4">
+        <div class="stat-icon bg-info-subtle rounded-3 p-3">
+          <i class="bi bi-calculator text-info fs-3"></i>
+        </div>
+        <div>
+          <h4 class="fw-bold mb-0">BMI Calculator</h4>
+          <p class="text-muted small mb-0">Body Mass Index &amp; Health Metrics</p>
+        </div>
+      </div>
+
+      <div class="row g-4">
+
+        <!-- Calculator Form -->
+        <div class="col-lg-5">
+          <div class="card border-0 rounded-4 shadow-sm p-4">
+            <h6 class="fw-bold mb-3">Enter Your Details</h6>
+            <form method="POST">
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">Height (cm)</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-transparent"><i class="bi bi-arrows-vertical text-muted"></i></span>
+                  <input type="number" name="height_cm" class="form-control"
+                         value="{{ result.height_cm if result else (profile.height_cm if profile else '') }}"
+                         placeholder="e.g. 170" step="0.1" min="100" max="250" required>
+                  <span class="input-group-text">cm</span>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">Weight (kg)</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-transparent"><i class="bi bi-speedometer text-muted"></i></span>
+                  <input type="number" name="weight_kg" class="form-control"
+                         value="{{ result.weight_kg if result else (profile.weight_kg if profile else '') }}"
+                         placeholder="e.g. 70" step="0.1" min="20" max="300" required>
+                  <span class="input-group-text">kg</span>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">Age (optional, for BMR)</label>
+                <input type="number" name="age" class="form-control"
+                       value="{{ profile.age if profile else '' }}"
+                       placeholder="e.g. 25" min="10" max="100">
+              </div>
+              <div class="mb-4">
+                <label class="form-label small fw-semibold">Gender (optional, for BMR)</label>
+                <select name="gender" class="form-select">
+                  <option value="">Select gender</option>
+                  <option value="male" {{ 'selected' if profile and profile.gender and profile.gender.lower()=='male' }}>Male</option>
+                  <option value="female" {{ 'selected' if profile and profile.gender and profile.gender.lower()=='female' }}>Female</option>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-accent w-100 fw-semibold">
+                <i class="bi bi-calculator me-2"></i>Calculate BMI
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div class="col-lg-7">
+          {% if result %}
+          <div class="bmi-result-card card border-0 rounded-4 shadow-sm p-4 mb-4 animate-slide-up">
+            <div class="text-center mb-4">
+              <div class="bmi-big-number text-{{ result.color }}" style="font-size:4rem;font-weight:800;line-height:1">
+                {{ result.bmi }}
+              </div>
+              <div class="fw-bold fs-5">{{ result.category }}</div>
+              <div class="text-muted small">Body Mass Index</div>
+            </div>
+
+            <!-- BMI Scale -->
+            <div class="bmi-scale rounded-3 overflow-hidden mb-4" style="height:12px;display:flex">
+              <div style="flex:1;background:#0dcaf0" title="Underweight (<18.5)"></div>
+              <div style="flex:1;background:#198754" title="Normal (18.5–24.9)"></div>
+              <div style="flex:1;background:#ffc107" title="Overweight (25–29.9)"></div>
+              <div style="flex:1;background:#dc3545" title="Obese (≥30)"></div>
+            </div>
+            <div class="d-flex justify-content-between small text-muted mb-4">
+              <span>Underweight<br><18.5</span>
+              <span class="text-center">Normal<br>18.5–24.9</span>
+              <span class="text-center">Overweight<br>25–29.9</span>
+              <span class="text-end">Obese<br>≥30</span>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-6">
+                <div class="rounded-3 p-3 bg-surface text-center">
+                  <div class="fw-bold text-accent">{{ result.ideal_weight_min }}–{{ result.ideal_weight_max }} kg</div>
+                  <div class="small text-muted">Ideal Weight Range</div>
+                </div>
+              </div>
+              {% if result.bmr %}
+              <div class="col-6">
+                <div class="rounded-3 p-3 bg-surface text-center">
+                  <div class="fw-bold text-success">{{ result.bmr }} kcal</div>
+                  <div class="small text-muted">Basal Metabolic Rate</div>
+                </div>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- BMI Reference Table -->
+          <div class="card border-0 rounded-4 shadow-sm">
+            <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+              <h6 class="fw-bold mb-0">BMI Reference Chart</h6>
+            </div>
+            <div class="card-body px-4 pb-4">
+              <table class="table table-sm table-borderless mb-0">
+                <thead>
+                  <tr class="text-muted small">
+                    <th>Category</th>
+                    <th>BMI Range</th>
+                    <th>Recommendation</th>
+                  </tr>
+                </thead>
+                <tbody class="small">
+                  {% for cat, range_, rec, color in [
+                    ("Underweight", "< 18.5", "Increase calorie intake with nutrient-dense foods", "info"),
+                    ("Normal Weight", "18.5 – 24.9", "Maintain current healthy lifestyle", "success"),
+                    ("Overweight", "25 – 29.9", "Gradual weight loss through diet & exercise", "warning"),
+                    ("Obese", "≥ 30", "Consult a healthcare professional for a plan", "danger"),
+                  ] %}
+                  <tr>
+                    <td><span class="badge bg-{{ color }}-subtle text-{{ color }}">{{ cat }}</span></td>
+                    <td>{{ range_ }}</td>
+                    <td class="text-muted">{{ rec }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

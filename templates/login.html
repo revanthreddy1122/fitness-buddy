@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="min-vh-100 d-flex align-items-center py-5">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-5 col-lg-4">
+
+        <div class="text-center mb-4 animate-fade-in">
+          <div class="brand-icon-lg mb-3">💪</div>
+          <h2 class="fw-bold">Welcome Back</h2>
+          <p class="text-muted">Sign in to your Fitness Buddy account</p>
+        </div>
+
+        <div class="card auth-card border-0 rounded-4 shadow-lg p-4 animate-slide-up">
+          <form method="POST" action="{{ url_for('login') }}" novalidate>
+            <div class="mb-3">
+              <label class="form-label fw-semibold small">Email Address</label>
+              <div class="input-group">
+                <span class="input-group-text bg-transparent border-end-0">
+                  <i class="bi bi-envelope text-muted"></i>
+                </span>
+                <input type="email" name="email" class="form-control border-start-0 ps-0"
+                       placeholder="you@example.com" required autocomplete="email">
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold small">Password</label>
+              <div class="input-group">
+                <span class="input-group-text bg-transparent border-end-0">
+                  <i class="bi bi-lock text-muted"></i>
+                </span>
+                <input type="password" name="password" id="passwordInput"
+                       class="form-control border-start-0 border-end-0 ps-0"
+                       placeholder="Your password" required autocomplete="current-password">
+                <button class="btn btn-outline-secondary border-start-0" type="button"
+                        onclick="togglePassword('passwordInput', this)">
+                  <i class="bi bi-eye"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mb-4">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="remember" id="remember">
+                <label class="form-check-label small" for="remember">Remember me</label>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-accent w-100 py-2 fw-semibold">
+              <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+            </button>
+          </form>
+        </div>
+
+        <p class="text-center text-muted mt-4 small">
+          Don't have an account? 
+          <a href="{{ url_for('signup') }}" class="text-accent fw-semibold text-decoration-none">Sign up free</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block extra_scripts %}
+<script>
+function togglePassword(inputId, btn) {
+  const input = document.getElementById(inputId);
+  const icon = btn.querySelector('i');
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.classList.replace('bi-eye', 'bi-eye-slash');
+  } else {
+    input.type = 'password';
+    icon.classList.replace('bi-eye-slash', 'bi-eye');
+  }
+}
+</script>
+{% endblock %}
+{% endblock %}

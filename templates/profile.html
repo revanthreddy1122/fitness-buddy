@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}Fitness Profile{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+
+      <div class="d-flex align-items-center gap-3 mb-4">
+        <div class="stat-icon bg-accent-soft rounded-3 p-3">
+          <i class="bi bi-person-gear text-accent fs-3"></i>
+        </div>
+        <div>
+          <h4 class="fw-bold mb-0">Fitness Profile</h4>
+          <p class="text-muted small mb-0">Personalise your AI coaching experience</p>
+        </div>
+      </div>
+
+      <div class="card border-0 rounded-4 shadow-sm p-4">
+        <form method="POST" action="{{ url_for('profile') }}">
+
+          <div class="row g-4">
+            <!-- Name -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Full Name</label>
+              <div class="input-group">
+                <span class="input-group-text bg-transparent"><i class="bi bi-person text-muted"></i></span>
+                <input type="text" name="name" class="form-control"
+                       value="{{ profile.name or '' }}" placeholder="Your name">
+              </div>
+            </div>
+
+            <!-- Age -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Age (years)</label>
+              <div class="input-group">
+                <span class="input-group-text bg-transparent"><i class="bi bi-calendar text-muted"></i></span>
+                <input type="number" name="age" class="form-control"
+                       value="{{ profile.age or '' }}" placeholder="e.g. 25" min="10" max="100">
+              </div>
+            </div>
+
+            <!-- Gender -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Gender</label>
+              <select name="gender" class="form-select">
+                <option value="">Select gender</option>
+                {% for g in ["Male", "Female", "Other"] %}
+                <option value="{{ g }}" {{ 'selected' if profile and profile.gender == g }}>{{ g }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <!-- Height -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Height (cm)</label>
+              <div class="input-group">
+                <span class="input-group-text bg-transparent"><i class="bi bi-arrows-vertical text-muted"></i></span>
+                <input type="number" name="height_cm" class="form-control"
+                       value="{{ profile.height_cm or '' }}" placeholder="e.g. 170"
+                       step="0.1" min="100" max="250" id="heightInput" oninput="calcBMI()">
+                <span class="input-group-text">cm</span>
+              </div>
+            </div>
+
+            <!-- Weight -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Weight (kg)</label>
+              <div class="input-group">
+                <span class="input-group-text bg-transparent"><i class="bi bi-speedometer text-muted"></i></span>
+                <input type="number" name="weight_kg" class="form-control"
+                       value="{{ profile.weight_kg or '' }}" placeholder="e.g. 70"
+                       step="0.1" min="20" max="300" id="weightInput" oninput="calcBMI()">
+                <span class="input-group-text">kg</span>
+              </div>
+            </div>
+
+            <!-- Live BMI -->
+            <div class="col-md-6 d-flex align-items-end">
+              <div class="bmi-live-card rounded-3 p-3 w-100 text-center">
+                <div class="small text-muted fw-semibold mb-1">Live BMI Preview</div>
+                <div class="fs-2 fw-bold text-accent" id="liveBMI">
+                  {{ profile.bmi if profile and profile.bmi else "—" }}
+                </div>
+                <div class="small" id="liveBMICategory">
+                  {{ profile.bmi_category if profile and profile.bmi else "Enter height & weight" }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Goal -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Fitness Goal</label>
+              <select name="goal" class="form-select" required>
+                <option value="">Select your goal</option>
+                {% for g in ["Weight Loss", "Weight Gain", "Muscle Gain", "Maintain Fitness"] %}
+                <option value="{{ g }}" {{ 'selected' if profile and profile.goal == g }}>{{ g }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <!-- Activity Level -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Activity Level</label>
+              <select name="activity_level" class="form-select" required>
+                <option value="">Select activity level</option>
+                {% for lvl, desc in [
+                  ("Sedentary", "Little or no exercise"),
+                  ("Lightly Active", "Light exercise 1–3 days/week"),
+                  ("Moderately Active", "Moderate exercise 3–5 days/week"),
+                  ("Very Active", "Hard exercise 6–7 days/week"),
+                ] %}
+                <option value="{{ lvl }}" {{ 'selected' if profile and profile.activity_level == lvl }}>
+                  {{ lvl }} — {{ desc }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+          </div>
+
+          <!-- Profile Summary Card -->
+          {% if profile and profile.bmi %}
+          <div class="profile-summary rounded-4 p-4 mt-4">
+            <h6 class="fw-bold mb-3"><i class="bi bi-bar-chart-fill text-accent me-2"></i>Your Stats</h6>
+            <div class="row g-3 text-center">
+              {% for label, value, unit in [
+                ("BMI", profile.bmi, ""),
+                ("BMI Category", profile.bmi_category, ""),
+                ("TDEE", profile.tdee, "kcal/day"),
+                ("Goal", profile.goal, ""),
+              ] %}
+              <div class="col-6 col-md-3">
+                <div class="stat-pill rounded-3 py-2 px-3">
+                  <div class="fw-bold">{{ value }}</div>
+                  <div class="small text-muted">{{ label }}{% if unit %} <span class="text-accent">{{ unit }}</span>{% endif %}</div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+
+          <div class="d-flex gap-3 mt-4">
+            <button type="submit" class="btn btn-accent px-4 fw-semibold">
+              <i class="bi bi-save me-2"></i>Save Profile
+            </button>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary px-4">
+              <i class="bi bi-arrow-left me-2"></i>Back
+            </a>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block extra_scripts %}
+<script>
+function calcBMI() {
+  const h = parseFloat(document.getElementById('heightInput').value);
+  const w = parseFloat(document.getElementById('weightInput').value);
+  const bmiEl = document.getElementById('liveBMI');
+  const catEl = document.getElementById('liveBMICategory');
+  if (h > 0 && w > 0) {
+    const bmi = (w / ((h/100)**2)).toFixed(1);
+    bmiEl.textContent = bmi;
+    let cat, col;
+    if      (bmi < 18.5) { cat = 'Underweight'; col = '#0dcaf0'; }
+    else if (bmi < 25)   { cat = 'Normal Weight'; col = '#198754'; }
+    else if (bmi < 30)   { cat = 'Overweight'; col = '#ffc107'; }
+    else                 { cat = 'Obese'; col = '#dc3545'; }
+    catEl.textContent = cat;
+    bmiEl.style.color = col;
+  } else {
+    bmiEl.textContent = '—';
+    catEl.textContent = 'Enter height & weight';
+    bmiEl.style.color = '';
+  }
+}
+</script>
+{% endblock %}
+{% endblock %}

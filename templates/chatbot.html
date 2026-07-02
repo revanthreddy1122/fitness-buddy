@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% block title %}AI Coach{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0" style="height:calc(100vh - 70px)">
+  <div class="row g-0 h-100">
+
+    <!-- ── Sidebar ───────────────────────────────────────────────── -->
+    <div class="col-md-3 col-lg-2 chat-sidebar d-none d-md-flex flex-column border-end p-3">
+      <div class="mb-4">
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <div class="avatar-circle bg-accent text-white fw-bold">AI</div>
+          <div>
+            <div class="fw-bold small">IBM Granite Coach</div>
+            <div class="text-success" style="font-size:0.7rem"><span class="online-dot"></span> Online</div>
+          </div>
+        </div>
+        <p class="text-muted" style="font-size:0.75rem">
+          Powered by IBM Granite 3.3 on Watsonx.ai
+        </p>
+      </div>
+
+      <div class="mb-3">
+        <div class="small fw-semibold text-muted text-uppercase mb-2">Quick Topics</div>
+        <div class="d-flex flex-column gap-1">
+          {% for topic in [
+            ("💪", "Give me a workout plan"),
+            ("🥗", "Indian meal plan for weight loss"),
+            ("📊", "Interpret my BMI"),
+            ("🏃", "Best cardio exercises at home"),
+            ("🧘", "Stress relief exercises"),
+            ("💡", "Motivate me today"),
+            ("📅", "Daily fitness routine"),
+            ("🛡️", "Injury prevention tips"),
+          ] %}
+          <button class="btn btn-sm btn-outline-secondary text-start rounded-3 px-2 py-1"
+                  style="font-size:0.8rem"
+                  onclick="sendQuickMessage('{{ topic[1] }}')">
+            {{ topic[0] }} {{ topic[1] }}
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="mt-auto">
+        <button class="btn btn-sm btn-outline-danger w-100" onclick="clearChat()">
+          <i class="bi bi-trash me-1"></i>Clear History
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Chat Main ─────────────────────────────────────────────── -->
+    <div class="col-md-9 col-lg-10 d-flex flex-column">
+
+      <!-- Chat Header -->
+      <div class="chat-header d-flex align-items-center gap-3 p-3 border-bottom">
+        <div class="avatar-circle bg-accent text-white fw-bold">AI</div>
+        <div class="flex-grow-1">
+          <div class="fw-bold">IBM Granite Fitness Coach</div>
+          <div class="small text-muted">
+            {% if current_user.profile %}
+            Personalised for {{ current_user.profile.name or current_user.username }}
+            &bull; Goal: {{ current_user.profile.goal }}
+            {% else %}
+            <a href="{{ url_for('profile') }}" class="text-accent">Set up your profile</a> for personalised coaching
+            {% endif %}
+          </div>
+        </div>
+        <a href="{{ url_for('workout_plan') }}" class="btn btn-sm btn-outline-accent d-none d-md-inline-flex">
+          <i class="bi bi-trophy me-1"></i>Workout Plan
+        </a>
+        <!-- Mobile quick topics -->
+        <button class="btn btn-sm btn-outline-secondary d-md-none"
+                data-bs-toggle="offcanvas" data-bs-target="#quickTopicsPanel">
+          <i class="bi bi-list"></i>
+        </button>
+      </div>
+
+      <!-- Messages Container -->
+      <div class="chat-messages flex-grow-1 overflow-auto p-3 p-md-4" id="chatMessages">
+
+        <!-- Welcome Message -->
+        {% if not messages %}
+        <div class="d-flex gap-3 mb-4 animate-fade-in">
+          <div class="avatar-circle bg-accent text-white fw-bold flex-shrink-0">AI</div>
+          <div class="flex-grow-1">
+            <div class="chat-bubble-ai rounded-4 rounded-tl-0 p-3 shadow-sm">
+              <p class="mb-2">
+                👋 Hey {{ current_user.profile.name or current_user.username if current_user.profile else current_user.username }}! 
+                I'm your IBM Granite AI Fitness Coach.
+              </p>
+              <p class="mb-2">
+                I'm here to help you with:
+              </p>
+              <ul class="mb-2 ps-3" style="font-size:0.9rem">
+                <li>🏋️ Personalised workout plans</li>
+                <li>🥗 Meal planning &amp; nutrition</li>
+                <li>📊 BMI &amp; health analysis</li>
+                <li>💪 Exercise guides &amp; form tips</li>
+                <li>🧠 Motivation &amp; consistency</li>
+                <li>🌿 Injury prevention advice</li>
+              </ul>
+              <p class="mb-0 small text-muted">What would you like to work on today?</p>
+            </div>
+            <div class="small text-muted mt-1">IBM Granite &bull; Now</div>
+          </div>
+        </div>
+        {% else %}
+        {% for msg in messages %}
+        <div class="d-flex gap-3 mb-3 {{ 'flex-row-reverse' if msg.role == 'user' else '' }} animate-fade-in">
+          <div class="avatar-circle {% if msg.role == 'user' %}bg-secondary{% else %}bg-accent{% endif %} text-white fw-bold flex-shrink-0">
+            {{ current_user.username[0].upper() if msg.role == 'user' else 'AI' }}
+          </div>
+          <div class="flex-grow-1 {{ 'd-flex flex-column align-items-end' if msg.role == 'user' else '' }}">
+            <div class="{{ 'chat-bubble-user' if msg.role == 'user' else 'chat-bubble-ai' }} rounded-4 {{ 'rounded-tr-0' if msg.role == 'user' else 'rounded-tl-0' }} p-3 shadow-sm"
+                 style="max-width:85%">
+              <div class="chat-content" style="white-space:pre-wrap;font-size:0.9rem">{{ msg.content }}</div>
+            </div>
+            <div class="small text-muted mt-1">
+              {{ msg.created_at.strftime('%H:%M') }}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- Typing indicator -->
+        <div id="typingIndicator" class="d-none d-flex gap-3 mb-3">
+          <div class="avatar-circle bg-accent text-white fw-bold flex-shrink-0">AI</div>
+          <div class="chat-bubble-ai rounded-4 rounded-tl-0 p-3 shadow-sm">
+            <div class="typing-dots">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Input Bar -->
+      <div class="chat-input-bar border-top p-3">
+        <div class="d-flex gap-2 align-items-end">
+          <div class="flex-grow-1">
+            <textarea id="chatInput" class="form-control rounded-3 border-0 shadow-sm"
+                      placeholder="Ask your AI fitness coach anything..."
+                      rows="1" style="resize:none;max-height:120px"
+                      onkeydown="handleChatKey(event)"
+                      oninput="autoResize(this)"></textarea>
+          </div>
+          <button class="btn btn-accent rounded-3 px-3 py-2" id="sendBtn" onclick="sendMessage()">
+            <i class="bi bi-send-fill"></i>
+          </button>
+        </div>
+        <div class="d-flex gap-2 mt-2 flex-wrap d-md-none">
+          {% for emoji, topic in [("💪","Workout plan"),("🥗","Meal ideas"),("🏃","Cardio tips"),("💡","Motivate me")] %}
+          <button class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1"
+                  style="font-size:0.75rem"
+                  onclick="sendQuickMessage('{{ topic }}')">{{ emoji }} {{ topic }}</button>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile Quick Topics Offcanvas -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="quickTopicsPanel">
+  <div class="offcanvas-header">
+    <h6 class="offcanvas-title fw-bold">Quick Topics</h6>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+  </div>
+  <div class="offcanvas-body">
+    <div class="d-flex flex-column gap-2">
+      {% for topic in [
+        ("💪", "Give me a workout plan"),
+        ("🥗", "Indian meal plan for weight loss"),
+        ("📊", "Interpret my BMI"),
+        ("🏃", "Best cardio exercises at home"),
+        ("🧘", "Stress relief exercises"),
+        ("💡", "Motivate me today"),
+        ("📅", "Daily fitness routine"),
+        ("🛡️", "Injury prevention tips"),
+      ] %}
+      <button class="btn btn-outline-secondary text-start rounded-3 py-2"
+              onclick="sendQuickMessage('{{ topic[1] }}');bootstrap.Offcanvas.getInstance(document.getElementById('quickTopicsPanel')).hide()">
+        {{ topic[0] }} {{ topic[1] }}
+      </button>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{% block extra_scripts %}
+<script>
+const messagesContainer = document.getElementById('chatMessages');
+const chatInput = document.getElementById('chatInput');
+const sendBtn = document.getElementById('sendBtn');
+const typingIndicator = document.getElementById('typingIndicator');
+
+// Scroll to bottom
+function scrollToBottom() {
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+scrollToBottom();
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function handleChatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function appendMessage(role, content) {
+  const isUser = role === 'user';
+  const wrapper = document.createElement('div');
+  wrapper.className = `d-flex gap-3 mb-3 ${isUser ? 'flex-row-reverse' : ''} animate-fade-in`;
+  
+  const safeContent = content.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  
+  wrapper.innerHTML = `
+    <div class="avatar-circle ${isUser ? 'bg-secondary' : 'bg-accent'} text-white fw-bold flex-shrink-0">
+      ${isUser ? '{{ current_user.username[0].upper() }}' : 'AI'}
+    </div>
+    <div class="flex-grow-1 ${isUser ? 'd-flex flex-column align-items-end' : ''}">
+      <div class="${isUser ? 'chat-bubble-user' : 'chat-bubble-ai'} rounded-4 ${isUser ? 'rounded-tr-0' : 'rounded-tl-0'} p-3 shadow-sm"
+           style="max-width:85%">
+        <div class="chat-content" style="white-space:pre-wrap;font-size:0.9rem">${safeContent}</div>
+      </div>
+      <div class="small text-muted mt-1">${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>
+    </div>
+  `;
+  typingIndicator.before(wrapper);
+  scrollToBottom();
+}
+
+async function sendMessage(message) {
+  const text = (message || chatInput.value).trim();
+  if (!text) return;
+
+  chatInput.value = '';
+  chatInput.style.height = 'auto';
+  sendBtn.disabled = true;
+
+  appendMessage('user', text);
+  typingIndicator.classList.remove('d-none');
+  scrollToBottom();
+
+  try {
+    const res = await fetch('/chatbot/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text })
+    });
+    const data = await res.json();
+    typingIndicator.classList.add('d-none');
+    appendMessage('assistant', data.response || 'Sorry, I could not respond right now.');
+  } catch (err) {
+    typingIndicator.classList.add('d-none');
+    appendMessage('assistant', '⚠️ Network error. Please check your connection.');
+  } finally {
+    sendBtn.disabled = false;
+    chatInput.focus();
+  }
+}
+
+function sendQuickMessage(topic) {
+  chatInput.value = topic;
+  sendMessage(topic);
+}
+
+async function clearChat() {
+  if (!confirm('Clear all chat history?')) return;
+  await fetch('/chatbot/clear', { method: 'POST' });
+  location.reload();
+}
+</script>
+{% endblock %}
+{% endblock %}

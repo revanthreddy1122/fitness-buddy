@@ -1,0 +1,386 @@
+{% extends "base.html" %}
+{% block title %}Progress Dashboard{% endblock %}
+
+{% block extra_head %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <div class="stat-icon bg-accent-soft rounded-3 p-3">
+      <i class="bi bi-graph-up-arrow text-accent fs-3"></i>
+    </div>
+    <div>
+      <h4 class="fw-bold mb-0">Progress Dashboard</h4>
+      <p class="text-muted small mb-0">Track your fitness journey over time</p>
+    </div>
+  </div>
+
+  <!-- ── Summary Stats ──────────────────────────────────────────── -->
+  {% if weight_logs %}
+  <div class="row g-3 mb-4">
+    {% set first_w = weight_logs[0].weight_kg %}
+    {% set last_w = weight_logs[-1].weight_kg %}
+    {% set diff = (last_w - first_w) | round(1) %}
+    <div class="col-sm-6 col-xl-3">
+      <div class="card border-0 rounded-4 shadow-sm p-4">
+        <div class="small fw-semibold text-muted text-uppercase mb-1">Starting Weight</div>
+        <div class="stat-value">{{ first_w }} <small class="fs-6 text-muted">kg</small></div>
+        <div class="small text-muted">{{ weight_logs[0].log_date }}</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+      <div class="card border-0 rounded-4 shadow-sm p-4">
+        <div class="small fw-semibold text-muted text-uppercase mb-1">Current Weight</div>
+        <div class="stat-value">{{ last_w }} <small class="fs-6 text-muted">kg</small></div>
+        <div class="small text-muted">{{ weight_logs[-1].log_date }}</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+      <div class="card border-0 rounded-4 shadow-sm p-4">
+        <div class="small fw-semibold text-muted text-uppercase mb-1">Total Change</div>
+        <div class="stat-value {{ 'text-success' if diff <= 0 else 'text-danger' }}">
+          {{ '+' if diff > 0 else '' }}{{ diff }} <small class="fs-6 text-muted">kg</small>
+        </div>
+        <div class="small text-muted">Since first log</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+      <div class="card border-0 rounded-4 shadow-sm p-4">
+        <div class="small fw-semibold text-muted text-uppercase mb-1">Latest BMI</div>
+        <div class="stat-value">{{ weight_logs[-1].bmi or "—" }}</div>
+        <div class="small text-muted">Body Mass Index</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="row g-4">
+
+    <!-- ── Weight History Chart ──────────────────────────────────── -->
+    <div class="col-lg-8">
+      <div class="card border-0 rounded-4 shadow-sm p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="fw-bold mb-0"><i class="bi bi-graph-up text-accent me-2"></i>Weight History</h6>
+          <div class="btn-group btn-group-sm" role="group" id="chartPeriodBtns">
+            <button class="btn btn-outline-secondary active" onclick="filterChart(7, this)">7D</button>
+            <button class="btn btn-outline-secondary" onclick="filterChart(30, this)">30D</button>
+            <button class="btn btn-outline-secondary" onclick="filterChart(90, this)">90D</button>
+            <button class="btn btn-outline-secondary" onclick="filterChart(0, this)">All</button>
+          </div>
+        </div>
+        {% if weight_chart %}
+        <canvas id="weightChart" style="max-height:300px"></canvas>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+          <i class="bi bi-graph-up fs-1 mb-2 d-block opacity-25"></i>
+          <p class="small">No weight data yet. Log your weight to see progress.</p>
+          <button class="btn btn-sm btn-accent" data-bs-toggle="modal" data-bs-target="#logWeightModal">
+            Log Weight
+          </button>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ── BMI History Chart ─────────────────────────────────────── -->
+    <div class="col-lg-4">
+      <div class="card border-0 rounded-4 shadow-sm p-4 h-100">
+        <h6 class="fw-bold mb-3"><i class="bi bi-activity text-success me-2"></i>BMI Trend</h6>
+        {% if weight_chart %}
+        <canvas id="bmiChart" style="max-height:260px"></canvas>
+        {% else %}
+        <div class="text-center py-5 text-muted small">No BMI data yet</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ── Habit Trends ───────────────────────────────────────────── -->
+    <div class="col-lg-6">
+      <div class="card border-0 rounded-4 shadow-sm p-4">
+        <h6 class="fw-bold mb-3"><i class="bi bi-droplet-fill text-info me-2"></i>Water & Sleep Trends</h6>
+        {% if habit_chart %}
+        <canvas id="habitChart" style="max-height:250px"></canvas>
+        {% else %}
+        <div class="text-center py-5 text-muted small">No habit data yet</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ── Steps Trend ───────────────────────────────────────────── -->
+    <div class="col-lg-6">
+      <div class="card border-0 rounded-4 shadow-sm p-4">
+        <h6 class="fw-bold mb-3"><i class="bi bi-person-walking text-success me-2"></i>Daily Steps</h6>
+        {% if habit_chart %}
+        <canvas id="stepsChart" style="max-height:250px"></canvas>
+        {% else %}
+        <div class="text-center py-5 text-muted small">No steps data yet</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ── Meal Log History ───────────────────────────────────────── -->
+    {% if meal_logs %}
+    <div class="col-12">
+      <div class="card border-0 rounded-4 shadow-sm p-4">
+        <h6 class="fw-bold mb-3"><i class="bi bi-calendar3 text-warning me-2"></i>Recent Meal Logs</h6>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle" style="font-size:0.85rem">
+            <thead class="text-muted small">
+              <tr>
+                <th>Date</th>
+                <th>Breakfast</th>
+                <th>Lunch</th>
+                <th>Dinner</th>
+                <th>Snacks</th>
+                <th>Calories</th>
+                <th>Water</th>
+                <th>Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m in meal_logs %}
+              <tr>
+                <td class="fw-semibold">{{ m.plan_date.strftime("%d %b %Y") }}</td>
+                <td class="text-muted">{{ (m.breakfast or '—')[:40] }}{{ '…' if m.breakfast and m.breakfast|length > 40 else '' }}</td>
+                <td class="text-muted">{{ (m.lunch or '—')[:40] }}{{ '…' if m.lunch and m.lunch|length > 40 else '' }}</td>
+                <td class="text-muted">{{ (m.dinner or '—')[:40] }}{{ '…' if m.dinner and m.dinner|length > 40 else '' }}</td>
+                <td class="text-muted">{{ (m.snacks or '—')[:30] }}</td>
+                <td>{{ m.total_calories or '—' }} kcal</td>
+                <td>{{ "%.1f"|format(m.water_target_ml/1000) if m.water_target_ml else '—' }}L</td>
+                <td>
+                  {% if m.ai_generated %}
+                  <span class="badge bg-accent-soft text-accent">AI</span>
+                  {% else %}
+                  <span class="badge bg-secondary-subtle text-secondary">Manual</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- ── Workout Completion ─────────────────────────────────────── -->
+    {% if habit_chart %}
+    <div class="col-lg-6">
+      <div class="card border-0 rounded-4 shadow-sm p-4">
+        <h6 class="fw-bold mb-3"><i class="bi bi-trophy-fill text-warning me-2"></i>Workout Completion</h6>
+        <canvas id="workoutChart" style="max-height:200px"></canvas>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- ── Log Weight Card ───────────────────────────────────────── -->
+    <div class="col-lg-6">
+      <div class="card border-0 rounded-4 shadow-sm p-4">
+        <h6 class="fw-bold mb-3"><i class="bi bi-plus-circle text-accent me-2"></i>Log New Weight</h6>
+        <div class="d-flex gap-3">
+          <input type="number" id="newWeightInput" class="form-control rounded-3"
+                 placeholder="Weight in kg" step="0.1" min="20" max="300">
+          <button class="btn btn-accent px-4 fw-semibold" onclick="logWeightFromProgress()">
+            <i class="bi bi-save me-1"></i>Save
+          </button>
+        </div>
+        <div class="text-muted small mt-2">Log today's weight to track your progress</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% block extra_scripts %}
+<script>
+// ── Chart Data ────────────────────────────────────────────
+const weightData = {{ weight_chart | tojson }};
+const habitData  = {{ habit_chart | tojson }};
+
+// Utility: filter by last N days (0 = all)
+function filterDays(data, n) {
+  if (!n) return data;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - n);
+  return data.filter(d => new Date(d.date) >= cutoff);
+}
+
+// ── Weight Chart ──────────────────────────────────────────
+let weightChart;
+function buildWeightChart(days) {
+  const d = filterDays(weightData, days);
+  const labels = d.map(x => x.date);
+  const vals   = d.map(x => x.weight);
+  if (weightChart) weightChart.destroy();
+  const ctx = document.getElementById('weightChart');
+  if (!ctx) return;
+  weightChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Weight (kg)',
+        data: vals,
+        borderColor: '#3b82d4',
+        backgroundColor: 'rgba(59,130,212,0.1)',
+        tension: 0.4,
+        fill: true,
+        pointBackgroundColor: '#3b82d4',
+        pointRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 11 } } },
+        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+buildWeightChart(7);
+
+function filterChart(days, btn) {
+  document.querySelectorAll('#chartPeriodBtns button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  buildWeightChart(days);
+}
+
+// ── BMI Chart ─────────────────────────────────────────────
+{% if weight_chart %}
+const bmiCtx = document.getElementById('bmiChart');
+if (bmiCtx) {
+  new Chart(bmiCtx, {
+    type: 'line',
+    data: {
+      labels: weightData.map(x => x.date),
+      datasets: [{
+        label: 'BMI',
+        data: weightData.map(x => x.bmi),
+        borderColor: '#10b981',
+        backgroundColor: 'rgba(16,185,129,0.1)',
+        tension: 0.4,
+        fill: true,
+        pointRadius: 3,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        annotation: {}
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 6, font: { size: 10 } } },
+        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } }
+      }
+    }
+  });
+}
+{% endif %}
+
+// ── Habit (Water & Sleep) Chart ───────────────────────────
+{% if habit_chart %}
+const habitCtx = document.getElementById('habitChart');
+if (habitCtx) {
+  new Chart(habitCtx, {
+    type: 'line',
+    data: {
+      labels: habitData.map(x => x.date),
+      datasets: [
+        {
+          label: 'Water (glasses)',
+          data: habitData.map(x => x.water),
+          borderColor: '#0dcaf0',
+          backgroundColor: 'rgba(13,202,240,0.08)',
+          tension: 0.4, fill: true, pointRadius: 3,
+        },
+        {
+          label: 'Sleep (hours)',
+          data: habitData.map(x => x.sleep),
+          borderColor: '#6c757d',
+          backgroundColor: 'rgba(108,117,125,0.08)',
+          tension: 0.4, fill: true, pointRadius: 3,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { font: { size: 11 } } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 10 } } },
+        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } }
+      }
+    }
+  });
+}
+
+// ── Steps Chart ───────────────────────────────────────────
+const stepsCtx = document.getElementById('stepsChart');
+if (stepsCtx) {
+  new Chart(stepsCtx, {
+    type: 'bar',
+    data: {
+      labels: habitData.map(x => x.date),
+      datasets: [{
+        label: 'Steps',
+        data: habitData.map(x => x.steps),
+        backgroundColor: habitData.map(x => x.steps >= 8000 ? 'rgba(25,135,84,0.7)' : 'rgba(108,117,125,0.4)'),
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 10, font: { size: 10 } } },
+        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } }
+      }
+    }
+  });
+}
+
+// ── Workout Completion Doughnut ───────────────────────────
+const wkCtx = document.getElementById('workoutChart');
+if (wkCtx) {
+  const done = habitData.filter(x => x.workout === 1).length;
+  const missed = habitData.length - done;
+  new Chart(wkCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Completed', 'Missed'],
+      datasets: [{
+        data: [done, missed],
+        backgroundColor: ['rgba(25,135,84,0.7)', 'rgba(220,53,69,0.2)'],
+        borderWidth: 0,
+      }]
+    },
+    options: {
+      responsive: true,
+      cutout: '70%',
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+{% endif %}
+
+// ── Log Weight ────────────────────────────────────────────
+async function logWeightFromProgress() {
+  const val = parseFloat(document.getElementById('newWeightInput').value);
+  if (!val || val < 20) { alert('Please enter a valid weight.'); return; }
+  const res = await fetch('/log-weight', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ weight_kg: val })
+  });
+  const data = await res.json();
+  if (data.status === 'ok') { location.reload(); }
+}
+</script>
+{% endblock %}
+{% endblock %}

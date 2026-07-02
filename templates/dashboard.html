@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+
+  <!-- Page Header -->
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+      <h4 class="fw-bold mb-0">
+        Good {{ "Morning" if now.hour < 12 else ("Afternoon" if now.hour < 17 else "Evening") }},
+        {{ profile.name or current_user.username }}! 👋
+      </h4>
+      <p class="text-muted small mb-0">{{ today.strftime("%A, %B %d %Y") }}</p>
+    </div>
+    <a href="{{ url_for('chatbot') }}" class="btn btn-accent">
+      <i class="bi bi-robot me-2"></i>Chat with AI Coach
+    </a>
+  </div>
+
+  <!-- ── Stats Row ──────────────────────────────────────────────── -->
+  <div class="row g-3 mb-4">
+
+    <!-- BMI Card -->
+    <div class="col-sm-6 col-xl-3">
+      <div class="stat-card card border-0 rounded-4 shadow-sm h-100 p-4">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <span class="small fw-semibold text-muted text-uppercase">BMI</span>
+          <span class="stat-icon bg-accent-soft rounded-3 p-2"><i class="bi bi-person-lines-fill text-accent fs-5"></i></span>
+        </div>
+        {% if profile and profile.bmi %}
+        <div class="stat-value">{{ profile.bmi }}</div>
+        <span class="badge bg-{% if profile.bmi_category == 'Normal' %}success{% elif profile.bmi_category == 'Underweight' %}info{% elif profile.bmi_category == 'Overweight' %}warning{% else %}danger{% endif %}-subtle text-{% if profile.bmi_category == 'Normal' %}success{% elif profile.bmi_category == 'Underweight' %}info{% elif profile.bmi_category == 'Overweight' %}warning{% else %}danger{% endif %} small mt-1">
+          {{ profile.bmi_category }}
+        </span>
+        {% else %}
+        <div class="stat-value text-muted">—</div>
+        <a href="{{ url_for('profile') }}" class="small text-accent">Set up profile</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Weight Card -->
+    <div class="col-sm-6 col-xl-3">
+      <div class="stat-card card border-0 rounded-4 shadow-sm h-100 p-4">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <span class="small fw-semibold text-muted text-uppercase">Weight</span>
+          <span class="stat-icon bg-success-subtle rounded-3 p-2"><i class="bi bi-speedometer text-success fs-5"></i></span>
+        </div>
+        <div class="stat-value">{{ profile.weight_kg if profile and profile.weight_kg else "—" }} <small class="fs-6 text-muted">kg</small></div>
+        <div class="small text-muted mt-1">Goal: {{ profile.goal if profile else "Not set" }}</div>
+      </div>
+    </div>
+
+    <!-- Water Card -->
+    <div class="col-sm-6 col-xl-3">
+      <div class="stat-card card border-0 rounded-4 shadow-sm h-100 p-4">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <span class="small fw-semibold text-muted text-uppercase">Water Today</span>
+          <span class="stat-icon bg-info-subtle rounded-3 p-2"><i class="bi bi-droplet-fill text-info fs-5"></i></span>
+        </div>
+        <div class="stat-value">{{ habit.water_glasses if habit else 0 }} <small class="fs-6 text-muted">/ 8 glasses</small></div>
+        <div class="progress rounded-pill mt-2" style="height:5px">
+          <div class="progress-bar bg-info rounded-pill" style="width:{{ ((habit.water_glasses or 0) / 8 * 100)|int if habit else 0 }}%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TDEE Card -->
+    <div class="col-sm-6 col-xl-3">
+      <div class="stat-card card border-0 rounded-4 shadow-sm h-100 p-4">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <span class="small fw-semibold text-muted text-uppercase">Daily Calories</span>
+          <span class="stat-icon bg-warning-subtle rounded-3 p-2"><i class="bi bi-fire text-warning fs-5"></i></span>
+        </div>
+        <div class="stat-value">{{ profile.tdee if profile and profile.tdee else "—" }} <small class="fs-6 text-muted">kcal</small></div>
+        <div class="small text-muted mt-1">TDEE estimate</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Quick Actions ──────────────────────────────────────────── -->
+  <div class="row g-3 mb-4">
+    <div class="col-12">
+      <div class="card border-0 rounded-4 shadow-sm p-3">
+        <div class="d-flex flex-wrap gap-2">
+          <a href="{{ url_for('chatbot') }}" class="btn btn-sm btn-outline-accent">
+            <i class="bi bi-robot me-1"></i>AI Coach
+          </a>
+          <a href="{{ url_for('meal_planner') }}" class="btn btn-sm btn-outline-success">
+            <i class="bi bi-egg-fried me-1"></i>Meal Plan
+          </a>
+          <a href="{{ url_for('habits') }}" class="btn btn-sm btn-outline-info">
+            <i class="bi bi-check2-circle me-1"></i>Log Habits
+          </a>
+          <a href="{{ url_for('bmi_calculator') }}" class="btn btn-sm btn-outline-warning">
+            <i class="bi bi-calculator me-1"></i>BMI Calc
+          </a>
+          <a href="{{ url_for('workout_plan') }}" class="btn btn-sm btn-outline-danger">
+            <i class="bi bi-trophy me-1"></i>Workout Plan
+          </a>
+          <a href="{{ url_for('progress') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-graph-up me-1"></i>Progress
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+
+    <!-- ── Today's Habits ─────────────────────────────────────── -->
+    <div class="col-lg-6">
+      <div class="card border-0 rounded-4 shadow-sm h-100">
+        <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center">
+          <h6 class="fw-bold mb-0"><i class="bi bi-check2-circle text-accent me-2"></i>Today's Habits</h6>
+          <a href="{{ url_for('habits') }}" class="btn btn-sm btn-outline-accent">Update</a>
+        </div>
+        <div class="card-body px-4 pb-4">
+          {% if habit %}
+          <div class="row g-3">
+            <div class="col-6">
+              <div class="habit-item rounded-3 p-3 text-center">
+                <div class="fs-2">💧</div>
+                <div class="fw-bold">{{ habit.water_glasses }}/8</div>
+                <div class="small text-muted">Glasses Water</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="habit-item rounded-3 p-3 text-center">
+                <div class="fs-2">😴</div>
+                <div class="fw-bold">{{ habit.sleep_hours }}h</div>
+                <div class="small text-muted">Sleep</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="habit-item rounded-3 p-3 text-center">
+                <div class="fs-2">👟</div>
+                <div class="fw-bold">{{ "{:,}".format(habit.steps) }}</div>
+                <div class="small text-muted">Steps</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="habit-item rounded-3 p-3 text-center">
+                <div class="fs-2">{{ "✅" if habit.workout_done else "⏳" }}</div>
+                <div class="fw-bold">{{ "Done!" if habit.workout_done else "Pending" }}</div>
+                <div class="small text-muted">Workout</div>
+              </div>
+            </div>
+          </div>
+          {% else %}
+          <div class="text-center py-4">
+            <div class="fs-1 mb-2">📋</div>
+            <p class="text-muted small">No habits logged today yet.</p>
+            <a href="{{ url_for('habits') }}" class="btn btn-sm btn-accent">Log Habits Now</a>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Weight Chart (7-day) ───────────────────────────────── -->
+    <div class="col-lg-6">
+      <div class="card border-0 rounded-4 shadow-sm h-100">
+        <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center">
+          <h6 class="fw-bold mb-0"><i class="bi bi-graph-up-arrow text-accent me-2"></i>Weight (7 days)</h6>
+          <a href="{{ url_for('progress') }}" class="btn btn-sm btn-outline-accent">Full Chart</a>
+        </div>
+        <div class="card-body px-4 pb-4">
+          {% if weight_logs %}
+          <canvas id="weightMiniChart" style="max-height:200px"></canvas>
+          {% else %}
+          <div class="text-center py-4">
+            <div class="fs-1 mb-2">📊</div>
+            <p class="text-muted small">No weight data yet.</p>
+            <button class="btn btn-sm btn-accent" data-bs-toggle="modal" data-bs-target="#logWeightModal">
+              Log Weight
+            </button>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Notifications ──────────────────────────────────────── -->
+    <div class="col-lg-6">
+      <div class="card border-0 rounded-4 shadow-sm">
+        <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center">
+          <h6 class="fw-bold mb-0"><i class="bi bi-bell-fill text-accent me-2"></i>Notifications</h6>
+          <a href="{{ url_for('notifications') }}" class="btn btn-sm btn-outline-accent">View All</a>
+        </div>
+        <div class="card-body px-4 pb-4">
+          {% if notifications %}
+          <div class="d-flex flex-column gap-2">
+            {% for n in notifications %}
+            <div class="notif-item rounded-3 p-3 d-flex gap-3 align-items-start">
+              <span class="notif-icon text-{{ 'info' if n.type=='water' else ('success' if n.type=='workout' else ('warning' if n.type=='sleep' else 'accent')) }}">
+                <i class="bi bi-{{ 'droplet-fill' if n.type=='water' else ('trophy-fill' if n.type=='workout' else ('moon-stars-fill' if n.type=='sleep' else 'bell-fill')) }} fs-5"></i>
+              </span>
+              <div>
+                <div class="fw-semibold small">{{ n.title }}</div>
+                <div class="text-muted" style="font-size:0.78rem">{{ n.message }}</div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="text-center py-4">
+            <div class="fs-1 mb-2">🔔</div>
+            <p class="text-muted small">All caught up! No new notifications.</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Weekly Habit Summary ───────────────────────────────── -->
+    <div class="col-lg-6">
+      <div class="card border-0 rounded-4 shadow-sm">
+        <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+          <h6 class="fw-bold mb-0"><i class="bi bi-calendar-week text-accent me-2"></i>Weekly Summary</h6>
+        </div>
+        <div class="card-body px-4 pb-4">
+          {% if weekly_habits %}
+          <canvas id="weeklyHabitChart" style="max-height:180px"></canvas>
+          {% else %}
+          <div class="text-center py-4 text-muted small">No data for this week yet.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Log Weight Modal -->
+<div class="modal fade" id="logWeightModal" tabindex="-1">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow-lg">
+      <div class="modal-header border-0">
+        <h6 class="modal-title fw-bold"><i class="bi bi-plus-circle me-2 text-accent"></i>Log Weight</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Weight (kg)</label>
+          <input type="number" id="weightInput" class="form-control rounded-3" placeholder="e.g. 72.5"
+                 step="0.1" min="20" max="300">
+        </div>
+        <button class="btn btn-accent w-100" onclick="logWeight()">
+          <i class="bi bi-save me-2"></i>Save
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block extra_scripts %}
+<script>
+// ── Weight mini chart ──────────────────────────────
+{% if weight_logs %}
+const wLabels = {{ weight_logs | map(attribute='log_date') | map('string') | list | tojson }};
+const wData   = {{ weight_logs | map(attribute='weight_kg') | list | tojson }};
+const wCtx = document.getElementById('weightMiniChart').getContext('2d');
+new Chart(wCtx, {
+  type: 'line',
+  data: {
+    labels: wLabels,
+    datasets: [{
+      label: 'Weight (kg)',
+      data: wData,
+      borderColor: '#3b82d4',
+      backgroundColor: 'rgba(59,130,212,0.1)',
+      tension: 0.4,
+      fill: true,
+      pointBackgroundColor: '#3b82d4',
+      pointRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false }, ticks: { maxTicksLimit: 5, font: { size: 11 } } },
+      y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11 } } }
+    }
+  }
+});
+{% endif %}
+
+// ── Weekly habits bar chart ────────────────────────
+{% if weekly_habits %}
+const hLabels = {{ weekly_habits | map(attribute='log_date') | map('string') | list | tojson }};
+const hWater  = {{ weekly_habits | map(attribute='water_glasses') | list | tojson }};
+const hSteps  = {{ weekly_habits | map(attribute='steps') | list | tojson }};
+const hCtx = document.getElementById('weeklyHabitChart').getContext('2d');
+new Chart(hCtx, {
+  type: 'bar',
+  data: {
+    labels: hLabels,
+    datasets: [
+      { label: 'Water (glasses)', data: hWater, backgroundColor: 'rgba(59,130,212,0.7)', borderRadius: 4 },
+      { label: 'Steps (/1000)', data: hSteps.map(s => Math.round(s/1000)), backgroundColor: 'rgba(16,185,129,0.7)', borderRadius: 4 },
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { labels: { font: { size: 11 } } } },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } }
+    }
+  }
+});
+{% endif %}
+
+// ── Log weight via AJAX ────────────────────────────
+function logWeight() {
+  const val = parseFloat(document.getElementById('weightInput').value);
+  if (!val || val < 20) { alert('Please enter a valid weight.'); return; }
+  fetch('/log-weight', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ weight_kg: val })
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.status === 'ok') {
+      bootstrap.Modal.getInstance(document.getElementById('logWeightModal')).hide();
+      location.reload();
+    }
+  });
+}
+</script>
+{% endblock %}
+{% endblock %}

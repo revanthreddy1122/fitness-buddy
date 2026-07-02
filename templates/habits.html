@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block title %}Habit Tracker{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <div class="stat-icon bg-warning-subtle rounded-3 p-3">
+      <i class="bi bi-check2-circle text-warning fs-3"></i>
+    </div>
+    <div>
+      <h4 class="fw-bold mb-0">Daily Habit Tracker</h4>
+      <p class="text-muted small mb-0">{{ today.strftime("%A, %B %d %Y") }}</p>
+    </div>
+  </div>
+
+  <div class="row g-4">
+
+    <!-- ── Log Form ───────────────────────────────────────────────── -->
+    <div class="col-lg-5">
+      <div class="card border-0 rounded-4 shadow-sm p-4">
+        <h6 class="fw-bold mb-4"><i class="bi bi-pencil-fill text-accent me-2"></i>Log Today's Habits</h6>
+        <form method="POST">
+
+          <!-- Water -->
+          <div class="mb-4">
+            <label class="form-label fw-semibold d-flex justify-content-between align-items-center">
+              <span><span class="fs-4">💧</span> Water Intake</span>
+              <span class="badge bg-info-subtle text-info" id="waterLabel">
+                {{ log.water_glasses if log else 0 }} / 8 glasses
+              </span>
+            </label>
+            <input type="range" name="water_glasses" class="form-range" min="0" max="16" step="1"
+                   value="{{ log.water_glasses if log else 0 }}"
+                   oninput="updateSlider(this,'waterLabel',this.value+' / 8 glasses')"
+                   id="waterRange">
+            <div class="d-flex justify-content-between small text-muted">
+              <span>0</span><span>4</span><span>8</span><span>12</span><span>16</span>
+            </div>
+          </div>
+
+          <!-- Sleep -->
+          <div class="mb-4">
+            <label class="form-label fw-semibold d-flex justify-content-between align-items-center">
+              <span><span class="fs-4">😴</span> Sleep Duration</span>
+              <span class="badge bg-secondary-subtle text-secondary" id="sleepLabel">
+                {{ log.sleep_hours if log else 0 }}h
+              </span>
+            </label>
+            <input type="range" name="sleep_hours" class="form-range" min="0" max="12" step="0.5"
+                   value="{{ log.sleep_hours if log else 0 }}"
+                   oninput="updateSlider(this,'sleepLabel',this.value+'h')">
+            <div class="d-flex justify-content-between small text-muted">
+              <span>0h</span><span>3h</span><span>6h</span><span>9h</span><span>12h</span>
+            </div>
+          </div>
+
+          <!-- Steps -->
+          <div class="mb-4">
+            <label class="form-label fw-semibold d-flex justify-content-between align-items-center">
+              <span><span class="fs-4">👟</span> Steps Walked</span>
+              <span class="badge bg-success-subtle text-success" id="stepsLabel">
+                {{ "{:,}".format(log.steps) if log else "0" }} steps
+              </span>
+            </label>
+            <input type="number" name="steps" class="form-control rounded-3"
+                   value="{{ log.steps if log else 0 }}" placeholder="e.g. 8000"
+                   min="0" max="100000" step="100"
+                   oninput="document.getElementById('stepsLabel').textContent = parseInt(this.value||0).toLocaleString()+' steps'">
+          </div>
+
+          <!-- Workout -->
+          <div class="mb-4">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="workout_done" id="workoutSwitch"
+                     {{ 'checked' if log and log.workout_done }}>
+              <label class="form-check-label fw-semibold" for="workoutSwitch">
+                <span class="fs-4">🏋️</span> Workout Completed Today
+              </label>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div class="mb-4">
+            <label class="form-label fw-semibold small"><i class="bi bi-journal me-1"></i>Notes (optional)</label>
+            <textarea name="notes" class="form-control rounded-3" rows="2"
+                      placeholder="How are you feeling? Any achievements?">{{ log.notes or '' }}</textarea>
+          </div>
+
+          <button type="submit" class="btn btn-accent w-100 fw-semibold py-2">
+            <i class="bi bi-save me-2"></i>Save Habits
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ── Today's Summary & Weekly Chart ────────────────────────── -->
+    <div class="col-lg-7">
+
+      <!-- Habit Rings / Gauges -->
+      <div class="card border-0 rounded-4 shadow-sm mb-4 p-4">
+        <h6 class="fw-bold mb-3"><i class="bi bi-award text-accent me-2"></i>Today's Progress</h6>
+        <div class="row g-3">
+
+          {% set habits_data = [
+            ("💧", "Water", (log.water_glasses or 0), 8, "info", "glasses"),
+            ("😴", "Sleep", (log.sleep_hours or 0), 8, "secondary", "hours"),
+            ("👟", "Steps", (log.steps or 0), 10000, "success", "steps"),
+          ] %}
+          {% for icon, name, val, target, color, unit in habits_data %}
+          <div class="col-4 text-center">
+            <div class="habit-ring-container mb-2">
+              <canvas id="ring{{ name }}" width="100" height="100"></canvas>
+              <div class="habit-ring-center">
+                <div class="fs-5">{{ icon }}</div>
+              </div>
+            </div>
+            <div class="fw-bold small">{{ "{:,}".format(val|int) if name=="Steps" else val }}</div>
+            <div class="small text-muted">{{ name }}</div>
+            <div class="small text-accent">/ {{ "{:,}".format(target) if name=="Steps" else target }} {{ unit }}</div>
+          </div>
+          {% endfor %}
+
+        </div>
+      </div>
+
+      <!-- Workout Badge -->
+      <div class="card border-0 rounded-4 shadow-sm mb-4 p-4">
+        <div class="d-flex align-items-center gap-3">
+          <div class="fs-1">{{ "✅" if log and log.workout_done else "⏳" }}</div>
+          <div>
+            <div class="fw-bold">Workout: {{ "Completed!" if log and log.workout_done else "Not done yet" }}</div>
+            <div class="small text-muted">{{ "Great job! Keep the streak going." if log and log.workout_done else "You still have time today!" }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7-Day History Table -->
+      {% if week_logs %}
+      <div class="card border-0 rounded-4 shadow-sm p-4">
+        <h6 class="fw-bold mb-3"><i class="bi bi-calendar-week me-2 text-accent"></i>Last 7 Days</h6>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0" style="font-size:0.82rem">
+            <thead class="text-muted">
+              <tr>
+                <th>Date</th>
+                <th>💧 Water</th>
+                <th>😴 Sleep</th>
+                <th>👟 Steps</th>
+                <th>🏋️</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for h in week_logs %}
+              <tr>
+                <td class="fw-semibold">{{ h.log_date.strftime("%d %b") }}</td>
+                <td>
+                  <span class="{{ 'text-success' if h.water_glasses >= 8 else 'text-warning' }}">
+                    {{ h.water_glasses }}/8
+                  </span>
+                </td>
+                <td>
+                  <span class="{{ 'text-success' if h.sleep_hours >= 7 else 'text-warning' }}">
+                    {{ h.sleep_hours }}h
+                  </span>
+                </td>
+                <td>
+                  <span class="{{ 'text-success' if h.steps >= 8000 else 'text-warning' }}">
+                    {{ "{:,}".format(h.steps) }}
+                  </span>
+                </td>
+                <td>
+                  {% if h.workout_done %}
+                  <span class="badge bg-success-subtle text-success">✓</span>
+                  {% else %}
+                  <span class="badge bg-secondary-subtle text-secondary">–</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+
+{% block extra_scripts %}
+<script>
+function updateSlider(el, labelId, text) {
+  document.getElementById(labelId).textContent = text;
+}
+
+// Draw habit ring charts
+function drawRing(canvasId, value, max, color) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const pct = Math.min(value / max, 1);
+  const cx = 50, cy = 50, r = 38;
+  ctx.clearRect(0, 0, 100, 100);
+
+  // Background ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--bs-border-color') || '#e5e7eb';
+  ctx.lineWidth = 8;
+  ctx.stroke();
+
+  // Progress ring
+  if (pct > 0) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * pct);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 8;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  }
+}
+
+drawRing('ringWater', {{ (log.water_glasses or 0) if log else 0 }}, 8, '#0dcaf0');
+drawRing('ringSleep', {{ (log.sleep_hours or 0) if log else 0 }}, 8, '#6c757d');
+drawRing('ringSteps', {{ (log.steps or 0) if log else 0 }}, 10000, '#198754');
+</script>
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Meal Planner{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div class="d-flex align-items-center gap-3">
+      <div class="stat-icon bg-success-subtle rounded-3 p-3">
+        <i class="bi bi-egg-fried text-success fs-3"></i>
+      </div>
+      <div>
+        <h4 class="fw-bold mb-0">Meal Planner</h4>
+        <p class="text-muted small mb-0">{{ today.strftime("%A, %B %d %Y") }}</p>
+      </div>
+    </div>
+    <form method="POST">
+      <input type="hidden" name="action" value="ai_generate">
+      <button type="submit" class="btn btn-accent">
+        <i class="bi bi-robot me-2"></i>Generate AI Meal Plan
+      </button>
+    </form>
+  </div>
+
+  {% if plan and plan.ai_generated %}
+  <div class="alert alert-success rounded-3 border-0 shadow-sm mb-4">
+    <i class="bi bi-stars me-2"></i>
+    <strong>AI Generated</strong> — This meal plan was created by IBM Granite based on your fitness profile.
+  </div>
+  {% endif %}
+
+  <!-- ── Macro Summary Row ──────────────────────────────────────── -->
+  <div class="row g-3 mb-4">
+    <div class="col-sm-6 col-md-3">
+      <div class="card border-0 rounded-4 shadow-sm p-3 text-center macro-card">
+        <div class="fs-2 mb-1">🔥</div>
+        <div class="fw-bold fs-4">{{ plan.total_calories if plan and plan.total_calories else "—" }}</div>
+        <div class="small text-muted">Total Calories</div>
+        {% if current_user.profile and current_user.profile.tdee %}
+        <div class="small text-accent mt-1">Goal: {{ current_user.profile.tdee }} kcal</div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="col-sm-6 col-md-3">
+      <div class="card border-0 rounded-4 shadow-sm p-3 text-center macro-card">
+        <div class="fs-2 mb-1">💧</div>
+        <div class="fw-bold fs-4">{{ "%.1f"|format((plan.water_target_ml or 2500)/1000) if plan else "2.5" }}L</div>
+        <div class="small text-muted">Water Target</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-md-3">
+      <div class="card border-0 rounded-4 shadow-sm p-3 text-center macro-card">
+        <div class="fs-2 mb-1">🥗</div>
+        <div class="fw-bold fs-4">4</div>
+        <div class="small text-muted">Meals Today</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-md-3">
+      <div class="card border-0 rounded-4 shadow-sm p-3 text-center macro-card">
+        <div class="fs-2 mb-1">🎯</div>
+        <div class="fw-bold fs-4 text-truncate">{{ current_user.profile.goal if current_user.profile else "—" }}</div>
+        <div class="small text-muted">Current Goal</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Meal Form ──────────────────────────────────────────────── -->
+  <form method="POST">
+    <input type="hidden" name="action" value="save">
+    <div class="row g-4">
+
+      {% for meal_name, icon, field_name, color, placeholder in [
+        ("Breakfast", "bi-sunrise", "breakfast", "warning", "e.g. Oats porridge, 2 boiled eggs, green tea"),
+        ("Lunch", "bi-brightness-high", "lunch", "success", "e.g. 2 roti, dal, sabzi, salad, lassi"),
+        ("Dinner", "bi-moon-stars", "dinner", "info", "e.g. Brown rice, rajma curry, raita"),
+        ("Snacks", "bi-cup-hot", "snacks", "danger", "e.g. Fruits, makhana, green tea, nuts"),
+      ] %}
+      <div class="col-md-6">
+        <div class="card border-0 rounded-4 shadow-sm meal-card">
+          <div class="card-header border-0 bg-{{ color }}-subtle rounded-top-4 p-3">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi {{ icon }} text-{{ color }} fs-5"></i>
+              <span class="fw-bold">{{ meal_name }}</span>
+            </div>
+          </div>
+          <div class="card-body p-3">
+            <textarea name="{{ field_name }}" class="form-control border-0 bg-transparent"
+                      rows="3" placeholder="{{ placeholder }}"
+                      style="resize:none">{{ (plan[field_name] if plan and plan[field_name] else '') | safe }}</textarea>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+
+      <!-- Calories & Water -->
+      <div class="col-md-6">
+        <div class="card border-0 rounded-4 shadow-sm p-4">
+          <h6 class="fw-bold mb-3"><i class="bi bi-fire text-warning me-2"></i>Calories & Water</h6>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Total Calories (kcal)</label>
+            <input type="number" name="total_calories" class="form-control rounded-3"
+                   value="{{ plan.total_calories if plan and plan.total_calories else '' }}"
+                   placeholder="e.g. 1800" min="0" max="5000">
+          </div>
+          <div class="mb-0">
+            <label class="form-label small fw-semibold">Water Target (ml)</label>
+            <input type="number" name="water_target_ml" class="form-control rounded-3"
+                   value="{{ plan.water_target_ml if plan and plan.water_target_ml else 2500 }}"
+                   placeholder="2500" min="0" max="6000" step="250">
+          </div>
+        </div>
+      </div>
+
+      <!-- Nutritional Tips -->
+      <div class="col-md-6">
+        <div class="card border-0 rounded-4 shadow-sm p-4 h-100">
+          <h6 class="fw-bold mb-3"><i class="bi bi-lightbulb text-accent me-2"></i>Quick Tips</h6>
+          <ul class="small text-muted ps-3 mb-0" style="line-height:2">
+            <li>Eat every 3–4 hours to keep metabolism active</li>
+            <li>Include protein in every meal for muscle repair</li>
+            <li>Drink a glass of water before each meal</li>
+            <li>Avoid processed foods and late-night snacking</li>
+            <li>Use smaller plates to control portion sizes</li>
+            <li>Include fibre-rich foods for better digestion</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="d-flex gap-3 mt-4">
+      <button type="submit" class="btn btn-success px-4 fw-semibold">
+        <i class="bi bi-save me-2"></i>Save Meal Plan
+      </button>
+      <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary px-4">
+        <i class="bi bi-arrow-left me-2"></i>Dashboard
+      </a>
+    </div>
+  </form>
+
+</div>
+{% endblock %}
